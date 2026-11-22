@@ -44,7 +44,7 @@
     $todayDate = date('m/d', $time);
     $db = Typecho_Db::get();
     $prefix = $db->getPrefix();
-    $sql = "SELECT * FROM `{$prefix}contents` WHERE created < {$time} and FROM_UNIXTIME(created, '%m/%d') = '{$todayDate}' and type = 'post' and status = 'publish' and (password is NULL or password = '') LIMIT 10";
+    $sql = "SELECT * FROM " . _sqlTable($prefix . 'contents') . " WHERE created < {$time} and " . _sqlTimeFormat('created', '%m/%d') . " = '{$todayDate}' and type = 'post' and status = 'publish' and (password is NULL or password = '') LIMIT 10";
     $result = $db->query($sql);
     $historyTodaylist = [];
     if ($result instanceof Traversable) {
@@ -52,8 +52,8 @@
         $item = Typecho_Widget::widget('Widget_Abstract_Contents')->push($item);
         $historyTodaylist[] = array(
           "title" => htmlspecialchars($item['title']),
-          "permalink" => $item['permalink'],
-          "date" => $item['year'] . ' ' . $item['month'] . '/' . $item['day']
+          "permalink" => _joePermalink($item, 'post'),
+          "date" => date('Y', $item['created'] + $this->options->timezone) . ' ' . date('m', $item['created'] + $this->options->timezone) . '/' . date('d', $item['created'] + $this->options->timezone)
         );
       }
     }

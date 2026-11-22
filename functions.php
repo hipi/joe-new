@@ -9,11 +9,17 @@ function themeConfig($form)
   $_db = Typecho_Db::get();
   $_prefix = $_db->getPrefix();
   try {
-    if (!array_key_exists('views', $_db->fetchRow($_db->select()->from('table.contents')->page(1, 1)))) {
-      $_db->query('ALTER TABLE `' . $_prefix . 'contents` ADD `views` INT DEFAULT 0;');
+    $_row = $_db->fetchRow($_db->select()->from('table.contents')->page(1, 1));
+    $_table = _sqlTable($_prefix . 'contents');
+    /* PostgreSQL / SQLite 使用标准 SQL 语法，MySQL 保留原有写法 */
+    $_addColumn = (_isPgsql() || _isSqlite())
+      ? 'ALTER TABLE ' . $_table . ' ADD COLUMN "%s" INTEGER DEFAULT 0'
+      : 'ALTER TABLE `' . $_prefix . 'contents` ADD `%s` INT DEFAULT 0;';
+    if (!is_array($_row) || !array_key_exists('views', $_row)) {
+      $_db->query(str_replace('%s', 'views', $_addColumn));
     }
-    if (!array_key_exists('agree', $_db->fetchRow($_db->select()->from('table.contents')->page(1, 1)))) {
-      $_db->query('ALTER TABLE `' . $_prefix . 'contents` ADD `agree` INT DEFAULT 0;');
+    if (!is_array($_row) || !array_key_exists('agree', $_row)) {
+      $_db->query(str_replace('%s', 'agree', $_addColumn));
     }
   } catch (Exception $e) {
   }

@@ -31,46 +31,7 @@ function themeInit($self)
   Helper::options()->commentsMaxNestingLevels = 999;
 
   /* 主题开放API 路由规则 */
-  if ($self->request->getPathInfo() == "/joe/api") {
-    switch ($self->request->routeType) {
-      case 'publish_list':
-        _getPost($self);
-        break;
-      case 'baidu_record':
-        _getRecord($self);
-        break;
-      case 'baidu_push':
-        _pushRecord($self);
-        break;
-      case 'handle_views':
-        _handleViews($self);
-        break;
-      case 'handle_agree':
-        _handleAgree($self);
-        break;
-      case 'wallpaper_type':
-        _getWallpaperType($self);
-        break;
-      case 'wallpaper_list':
-        _getWallpaperList($self);
-        break;
-      case 'maccms_list':
-        _getMaccmsList($self);
-        break;
-      case 'huya_list':
-        _getHuyaList($self);
-        break;
-      case 'server_status':
-        _getServerStatus($self);
-        break;
-      case 'comment_lately':
-        _getCommentLately($self);
-        break;
-      case 'article_filing':
-        _getArticleFiling($self);
-        break;
-    };
-  }
+  _joeApiDispatch($self);
 
 
   /* 增加自定义SiteMap功能 */

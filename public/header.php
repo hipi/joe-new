@@ -84,11 +84,11 @@
         <?php $this->widget('Widget_Contents_Page_List')->to($pages); ?>
         <?php if (count($pages->stack) <= $this->options->JNavMaxNum) : ?>
           <?php foreach ($pages->stack as $item) : ?>
-            <a class="item <?php echo $this->is('page', $item['slug']) ? 'active' : '' ?>" href="<?php echo $item['permalink'] ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
+            <a class="item <?php echo $this->is('page', $item['slug']) ? 'active' : '' ?>" href="<?php echo _joePermalink($item, 'page') ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
           <?php endforeach; ?>
         <?php else : ?>
           <?php foreach (array_slice($pages->stack, 0, $this->options->JNavMaxNum) as $item) : ?>
-            <a class="item <?php echo $this->is('page', $item['slug']) ? 'active' : '' ?>" href="<?php echo $item['permalink'] ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
+            <a class="item <?php echo $this->is('page', $item['slug']) ? 'active' : '' ?>" href="<?php echo _joePermalink($item, 'page') ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
           <?php endforeach; ?>
           <div class="joe_dropdown" trigger="hover" placement="60px" style="margin-right: 15px;">
             <div class="joe_dropdown__link">
@@ -99,7 +99,7 @@
             </div>
             <nav class="joe_dropdown__menu">
               <?php foreach (array_slice($pages->stack, $this->options->JNavMaxNum) as $item) : ?>
-                <a class="<?php echo $this->is('page', $item['slug']) ? 'active' : '' ?>" href="<?php echo $item['permalink'] ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
+                <a class="<?php echo $this->is('page', $item['slug']) ? 'active' : '' ?>" href="<?php echo _joePermalink($item, 'page') ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
               <?php endforeach; ?>
             </nav>
           </div>
@@ -180,7 +180,7 @@
                 <nav class="joe_dropdown__menu">
                   <?php foreach ($children as $mid) : ?>
                     <?php $child = $category->getCategory($mid); ?>
-                    <a class="<?php echo $this->is('category', $child['slug']) ? 'active' : '' ?>" href="<?php echo $child['permalink'] ?>" title="<?php echo $child['name']; ?>"><?php echo $child['name']; ?></a>
+                    <a class="<?php echo $this->is('category', $child['slug']) ? 'active' : '' ?>" href="<?php echo _joePermalink($child, 'category') ?>" title="<?php echo $child['name']; ?>"><?php echo $child['name']; ?></a>
                   <?php endforeach; ?>
                 </nav>
               </div>
@@ -356,7 +356,7 @@
                     <?php foreach ($children as $mid) : ?>
                       <?php $child = $category->getCategory($mid); ?>
                       <li>
-                        <a class="link <?php echo $this->is('category', $child['slug']) ? 'current' : '' ?>" href="<?php echo $child['permalink'] ?>" title="<?php echo $child['name']; ?>"><?php echo $child['name']; ?></a>
+                        <a class="link <?php echo $this->is('category', $child['slug']) ? 'current' : '' ?>" href="<?php echo _joePermalink($child, 'category') ?>" title="<?php echo $child['name']; ?>"><?php echo $child['name']; ?></a>
                       </li>
                     <?php endforeach; ?>
                   </ul>
@@ -377,7 +377,7 @@
         <ul class="slides panel-body">
           <?php foreach ($pages->stack as $item) : ?>
             <li>
-              <a class="link <?php echo $this->is('page', $item['slug']) ? 'current' : '' ?>" href="<?php echo $item['permalink'] ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
+              <a class="link <?php echo $this->is('page', $item['slug']) ? 'current' : '' ?>" href="<?php echo _joePermalink($item, 'page') ?>" title="<?php echo $item['title'] ?>"><?php echo $item['title'] ?></a>
             </li>
           <?php endforeach; ?>
         </ul>

@@ -352,7 +352,7 @@ function _getCommentLately($self)
     $prefix = $db->getPrefix();
     for ($i = ($num - 1); $i >= 0; $i--) {
         $date = date("Y/m/d", $time - ($i * 24 * 60 * 60));
-        $sql = "SELECT coid FROM `{$prefix}comments` WHERE FROM_UNIXTIME(created, '%Y/%m/%d') = '{$date}' limit 100";
+        $sql = "SELECT coid FROM " . _sqlTable($prefix . 'comments') . " WHERE " . _sqlTimeFormat('created', '%Y/%m/%d') . " = '{$date}' limit 100";
         $count = count($db->fetchAll($sql));
         $categories[] = $date;
         $series[] = $count;
@@ -377,15 +377,17 @@ function _getArticleFiling($self)
     $db = Typecho_Db::get();
     $prefix = $db->getPrefix();
     $result = [];
-    //$sql = "SELECT FROM_UNIXTIME(created, '%Y 年 %m 月') as date FROM `{$prefix}contents` WHERE created < {$time} AND (password is NULL or password = '') AND status = 'publish' AND type = 'post' GROUP BY FROM_UNIXTIME(created, '%Y 年 %m 月') DESC LIMIT {$pageSize} OFFSET {$offset}";
-    
-    $sql = "SELECT FROM_UNIXTIME(created, '%Y 年 %m 月') as date FROM (SELECT * FROM `{$prefix}contents` ORDER BY created DESC) as new_table WHERE created < {$time} AND (password is NULL or password = '') AND status = 'publish' AND type = 'post' GROUP BY date ORDER BY date DESC LIMIT {$pageSize} OFFSET {$offset}";
+    $table = _sqlTable($prefix . 'contents');
+    $dateField = _sqlTimeFormat('created', '%Y 年 %m 月');
+    /* PostgreSQL 不支持按列别名分组，改用序号分组 */
+    $groupBy = _isPgsql() ? '1' : 'date';
+    $sql = "SELECT {$dateField} as date FROM (SELECT * FROM {$table} ORDER BY created DESC) as new_table WHERE created < {$time} AND (password is NULL or password = '') AND status = 'publish' AND type = 'post' GROUP BY {$groupBy} ORDER BY {$groupBy} DESC LIMIT {$pageSize} OFFSET {$offset}";
     $temp = $db->fetchAll($sql);
     $options = Typecho_Widget::widget('Widget_Options');
     foreach ($temp as $item) {
-        $date = $item['date'];
+        $date = str_replace("'", "''", $item['date']);
         $list = [];
-        $sql = "SELECT * FROM `{$prefix}contents` WHERE created < {$time} AND (password is NULL or password = '') AND status = 'publish' AND type = 'post' AND FROM_UNIXTIME(created, '%Y 年 %m 月') = '{$date}' ORDER BY created DESC LIMIT 100";
+        $sql = "SELECT * FROM {$table} WHERE created < {$time} AND (password is NULL or password = '') AND status = 'publish' AND type = 'post' AND {$dateField} = '{$date}' ORDER BY created DESC LIMIT 100";
         $_list = $db->fetchAll($sql);
         foreach ($_list as $_item) {
             $type = $_item['type'];
@@ -411,4 +413,77 @@ function _getArticleFiling($self)
         $result[] = array("date" => $date, "list" => $list);
     }
     $self->response->throwJson($result);
+}
+
+/* 读取请求参数（兼容 Typecho 1.1 ~ 1.3，1.3 起魔术属性已标记废弃） */
+function _joeRequestParam($request, $key, $default = NULL)
+{
+    if (method_exists($request, 'get')) {
+        return $request->get($key, $default);
+    }
+    return isset($request->{$key}) ? $request->{$key} : $default;
+}
+
+/* 主题开放API 统一分发入口 */
+function _joeApiDispatch($self)
+{
+    /* 防止 themeInit 与 404 模板重复分发 */
+    static $handled = false;
+    if ($handled) return false;
+
+    $request = $self->request;
+    $pathInfo = method_exists($request, 'getPathInfo') ? (string) $request->getPathInfo() : '';
+    /* 兼容 /joe/api、/joe/api/、/index.php/joe/api */
+    if (!preg_match('#(^|/)joe/api/?$#i', $pathInfo)) {
+        return false;
+    }
+    $handled = true;
+
+    $routeType = _joeRequestParam($request, 'routeType');
+    switch ($routeType) {
+        case 'publish_list':
+            _getPost($self);
+            break;
+        case 'baidu_record':
+            _getRecord($self);
+            break;
+        case 'baidu_push':
+            _pushRecord($self);
+            break;
+        case 'handle_views':
+            _handleViews($self);
+            break;
+        case 'handle_agree':
+            _handleAgree($self);
+            break;
+        case 'wallpaper_type':
+            _getWallpaperType($self);
+            break;
+        case 'wallpaper_list':
+            _getWallpaperList($self);
+            break;
+        case 'maccms_list':
+            _getMaccmsList($self);
+            break;
+        case 'huya_list':
+            _getHuyaList($self);
+            break;
+        case 'server_status':
+            _getServerStatus($self);
+            break;
+        case 'comment_lately':
+            _getCommentLately($self);
+            break;
+        case 'article_filing':
+            _getArticleFiling($self);
+            break;
+        default:
+            /* 不再静默返回 404，统一返回 JSON 便于排查 */
+            $self->response->throwJson(array(
+                "code" => 0,
+                "data" => "非法请求！未知的接口类型（routeType）"
+            ));
+            break;
+    }
+    return true;
 }

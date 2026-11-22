@@ -28,7 +28,7 @@
         <li class="line">/</li>
         <?php if (sizeof($this->categories) > 0) : ?>
           <li class="item">
-            <a class="link" href="<?php echo $this->categories[0]['permalink']; ?>" title="<?php echo $this->categories[0]['name']; ?>"><?php echo $this->categories[0]['name']; ?></a>
+            <a class="link" href="<?php echo _joePermalink($this->categories[0], 'category'); ?>" title="<?php echo $this->categories[0]['name']; ?>"><?php echo $this->categories[0]['name']; ?></a>
           </li>
           <li class="line">/</li>
         <?php endif; ?>

@@ -1,4 +1,80 @@
 <?php
+/* 获取当前数据库适配器名称（兼容不同版本的 Typecho） */
+function _getDbAdapterName()
+{
+  $db = Typecho_Db::get();
+  if (method_exists($db, 'getAdapterName')) {
+    return (string) $db->getAdapterName();
+  }
+  $adapter = $db->getAdapter();
+  return is_object($adapter) ? get_class($adapter) : '';
+}
+
+/* 是否为 PostgreSQL 数据库 */
+function _isPgsql()
+{
+  $name = strtolower(_getDbAdapterName());
+  return strpos($name, 'pgsql') !== false || strpos($name, 'postgres') !== false;
+}
+
+/* 是否为 SQLite 数据库 */
+function _isSqlite()
+{
+  return strpos(strtolower(_getDbAdapterName()), 'sqlite') !== false;
+}
+
+/* 生成各数据库通用的表名引用 */
+function _sqlTable($table)
+{
+  return _isPgsql() ? '"' . $table . '"' : '`' . $table . '`';
+}
+
+/* 生成各数据库通用的 UNIX 时间戳格式化表达式（$format 使用 MySQL 的格式符） */
+function _sqlTimeFormat($column, $format)
+{
+  if (_isPgsql()) {
+    /* MySQL 格式符 => PostgreSQL to_char 模板 */
+    $template = strtr($format, array(
+      '%Y' => 'YYYY',
+      '%y' => 'YY',
+      '%m' => 'MM',
+      '%d' => 'DD',
+      '%H' => 'HH24',
+      '%i' => 'MI',
+      '%s' => 'SS'
+    ));
+    /* 模板中的普通字面量（如中文）用双引号包裹，避免被 to_char 当成格式符解析 */
+    $template = preg_replace_callback('/[^A-Za-z0-9\/:\- ]+/u', function ($matches) {
+      return '"' . $matches[0] . '"';
+    }, $template);
+    /* 显式指定时区，保证与 PHP 的 date() 输出一致 */
+    $timezone = str_replace("'", "''", date_default_timezone_get());
+    return "to_char(to_timestamp({$column}) AT TIME ZONE '{$timezone}', '" . str_replace("'", "''", $template) . "')";
+  }
+  if (_isSqlite()) {
+    $format = strtr($format, array('%i' => '%M', '%s' => '%S'));
+    return "strftime('" . str_replace("'", "''", $format) . "', {$column}, 'unixepoch')";
+  }
+  return "FROM_UNIXTIME({$column}, '" . str_replace("'", "''", $format) . "')";
+}
+
+/* 获取内容行数据（stack 元素）的固定链接，兼容 Typecho 1.1 ~ 1.3
+   Typecho 1.3 起 Contents::filter() 不再生成 permalink 等动态字段 */
+function _joePermalink($item, $type = 'post')
+{
+  if (!is_array($item)) {
+    return '#';
+  }
+  if (!empty($item['permalink'])) {
+    return $item['permalink'];
+  }
+  if (empty($type)) {
+    $type = isset($item['type']) ? $item['type'] : 'post';
+  }
+  $router = class_exists('Typecho\Router') ? 'Typecho\Router' : 'Typecho_Router';
+  return call_user_func(array($router, 'url'), $type, $item);
+}
+
 /* 获取主题当前版本号 */
 function _getVersion()
 {
@@ -269,13 +345,21 @@ function _getAsideAuthorNav()
     $limit = Helper::options()->JAside_Author_Nav;
     $db = Typecho_Db::get();
     $prefix = $db->getPrefix();
-    $sql = "SELECT * FROM `{$prefix}contents` WHERE cid >= (SELECT floor( RAND() * ((SELECT MAX(cid) FROM `{$prefix}contents`)-(SELECT MIN(cid) FROM `{$prefix}contents`)) + (SELECT MIN(cid) FROM `{$prefix}contents`))) and type='post' and status='publish' and (password is NULL or password='') ORDER BY cid LIMIT $limit";
+    $table = _sqlTable($prefix . 'contents');
+    $limit = (int) $limit;
+    if (_isPgsql()) {
+      $sql = "SELECT * FROM {$table} WHERE cid >= (SELECT (FLOOR(RANDOM() * ((SELECT MAX(cid) FROM {$table}) - (SELECT MIN(cid) FROM {$table})) + (SELECT MIN(cid) FROM {$table})))::INT) and type='post' and status='publish' and (password is NULL or password='') ORDER BY cid LIMIT {$limit}";
+    } elseif (_isSqlite()) {
+      $sql = "SELECT * FROM {$table} WHERE cid >= (SELECT CAST(ABS(RANDOM()) % (MAX(cid) - MIN(cid) + 1) + MIN(cid) AS INTEGER) FROM {$table}) and type='post' and status='publish' and (password is NULL or password='') ORDER BY cid LIMIT {$limit}";
+    } else {
+      $sql = "SELECT * FROM {$table} WHERE cid >= (SELECT floor( RAND() * ((SELECT MAX(cid) FROM {$table})-(SELECT MIN(cid) FROM {$table})) + (SELECT MIN(cid) FROM {$table}))) and type='post' and status='publish' and (password is NULL or password='') ORDER BY cid LIMIT {$limit}";
+    }
     $result = $db->query($sql);
     if ($result instanceof Traversable) {
       foreach ($result as $item) {
         $item = Typecho_Widget::widget('Widget_Abstract_Contents')->push($item);
         $title = htmlspecialchars($item['title']);
-        $permalink = $item['permalink'];
+        $permalink = _joePermalink($item, 'post');
         echo "
 						<li class='item'>
 							<a class='link' href='{$permalink}' title='{$title}'>{$title}</a>

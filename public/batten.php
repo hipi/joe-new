@@ -2,7 +2,7 @@
   <div class="joe_detail__category">
     <?php if (sizeof($this->categories) > 0) : ?>
       <?php foreach (array_slice($this->categories, 0, 5) as $key => $item) : ?>
-        <a href="<?php echo $item['permalink']; ?>" class="item item-<?php echo $key ?>" title="<?php echo $item['name']; ?>"><?php echo $item['name']; ?></a>
+        <a href="<?php echo _joePermalink($item, 'category'); ?>" class="item item-<?php echo $key ?>" title="<?php echo $item['name']; ?>"><?php echo $item['name']; ?></a>
       <?php endforeach; ?>
     <?php endif; ?>
     <?php if ($this->user->uid == $this->authorId) : ?>
