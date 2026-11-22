@@ -4,6 +4,100 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 /* Joe核心文件 */
 require_once("core/core.php");
 
+/* 行内 Markdown 转换（转义后处理加粗、行内代码、链接） */
+function _changelogInline($text)
+{
+  $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+  $text = preg_replace('/\*\*(.+?)\*\*/u', '<strong>$1</strong>', $text);
+  $text = preg_replace('/`([^`]+)`/u', '<code>$1</code>', $text);
+  $text = preg_replace('/\[(.+?)\]\((.+?)\)/u', '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>', $text);
+  return $text;
+}
+
+/* 读取主题目录下的 CHANGELOG.md，生成后台“最新公告”面板的 HTML */
+function _getChangelogHtml($maxVersions = 2)
+{
+  $file = __DIR__ . '/CHANGELOG.md';
+  if (!is_file($file)) {
+    return '<p class="title">暂无更新日志</p>';
+  }
+  $content = @file_get_contents($file);
+  if ($content === false || trim($content) === '') {
+    return '<p class="title">暂无更新日志</p>';
+  }
+
+  $lines = preg_split('/\r\n|\r|\n/', $content);
+  $html = '';
+  $versionCount = 0;
+  $inList = false;
+  $started = false;
+
+  foreach ($lines as $line) {
+    $trim = trim($line);
+
+    /* 版本标题，只从第一个版本开始解析 */
+    if (preg_match('/^##\s*\[?([^\]]+?)\]?\s*(?:-\s*(.+))?$/', $trim, $m)) {
+      $versionCount++;
+      if ($versionCount > $maxVersions) break;
+      if ($inList) {
+        $html .= '</ol>';
+        $inList = false;
+      }
+      $version = trim($m[1]);
+      $date = isset($m[2]) ? trim($m[2]) : '';
+      $html .= '<p class="title">'
+        . ($versionCount === 1 ? '最新版本：' : '')
+        . htmlspecialchars($version, ENT_QUOTES, 'UTF-8')
+        . ($date !== '' ? '（' . htmlspecialchars($date, ENT_QUOTES, 'UTF-8') . '）' : '')
+        . '</p>';
+      $started = true;
+      continue;
+    }
+
+    /* 跳过第一个版本标题之前的说明文字 */
+    if (!$started) continue;
+
+    if ($trim === '') {
+      if ($inList) {
+        $html .= '</ol>';
+        $inList = false;
+      }
+      continue;
+    }
+
+    /* 小节标题 */
+    if (preg_match('/^#{3,6}\s*(.+)$/', $trim, $m)) {
+      if ($inList) {
+        $html .= '</ol>';
+        $inList = false;
+      }
+      $html .= '<h4>' . _changelogInline($m[1]) . '</h4>';
+      continue;
+    }
+
+    /* 列表项 */
+    if (preg_match('/^\s*[-*+]\s+(.+)$/', $line, $m)) {
+      if (!$inList) {
+        $html .= '<ol>';
+        $inList = true;
+      }
+      $html .= '<li>' . _changelogInline($m[1]) . '</li>';
+      continue;
+    }
+
+    /* 普通段落 */
+    if ($inList) {
+      $html .= '</ol>';
+      $inList = false;
+    }
+    $html .= '<p>' . _changelogInline($trim) . '</p>';
+  }
+
+  if ($inList) $html .= '</ol>';
+
+  return $html === '' ? '<p class="title">暂无更新日志</p>' : $html;
+}
+
 function themeConfig($form)
 {
   $_db = Typecho_Db::get();
@@ -42,7 +136,7 @@ function themeConfig($form)
         <?php require_once('core/backup.php'); ?>
       </div>
     </div>
-    <div class="joe_config__notice">请求数据中...</div>
+    <div class="joe_config__notice"><?php echo _getChangelogHtml(); ?></div>
   <?php
   $JFavicon = new Typecho_Widget_Helper_Form_Element_Textarea(
     'JFavicon',

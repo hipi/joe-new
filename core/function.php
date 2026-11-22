@@ -78,7 +78,7 @@ function _joePermalink($item, $type = 'post')
 /* 获取主题当前版本号 */
 function _getVersion()
 {
-  return "7.7.1";
+  return "7.8.0";
 };
 
 /* 获取资源路径 */

@@ -265,3 +265,32 @@
         }
     }
 }
+
+/* 后台“最新公告”面板（内容来自主题目录下的 CHANGELOG.md） */
+.joe_config {
+    &__notice {
+        h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #303133;
+            margin: 15px 0 5px;
+        }
+        strong {
+            color: #303133;
+        }
+        code {
+            padding: 1px 5px;
+            background: #f4f4f5;
+            border-radius: 3px;
+            font-size: 13px;
+            color: #e6a23c;
+        }
+        ol {
+            padding: 0 40px;
+            margin-bottom: 10px;
+            li {
+                list-style: decimal;
+            }
+        }
+    }
+}
